@@ -19,11 +19,15 @@ EMOTION_DATASET = os.getenv("EMOTION_DATASET")
 # Get the user id of the user who will receive the console output
 OWNER_ID = os.getenv("OWNER_ID")
 
-
+async def restart():
+    await client.close()
+    await asyncio.create_subprocess_exec("python3","main.py")
+    await asyncio.sleep(1)
 
 # Create the Discord client
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 client = Client(intents=intents)
 
 @client.event
@@ -40,6 +44,7 @@ async def fine_tune_async(model, tokenizer, EMOTION_DATASET, conn):
 
 @client.event
 async def on_message(message):
+    print(f"Received Message: {message.content} from {message.author} in {message.channel}")
     model = AutoModelWithLMHead.from_pretrained('gpt2')
     tokenizer = AutoTokenizer.from_pretrained('gpt2')
     if message.content.startswith("!train"):
@@ -82,6 +87,9 @@ async def on_message(message):
         except Exception as e:
             tb = traceback.format_exc()
             owner = client.get_user(int(OWNER_ID))
-            await owner.send(f"An error occurred: {e}")
+            await owner.send(f"An error occurred: {e}\n\n{tb}")
+    elif message.content.startswith("!restart"):
+        await message.channel.send("Rebooting! Be right back!")
+        await restart()
 
 client.run(TOKEN)
