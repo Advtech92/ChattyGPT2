@@ -1,3 +1,4 @@
 .env
 __pycache__
 results
+DB_CONVO.db
