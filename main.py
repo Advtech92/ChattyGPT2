@@ -8,7 +8,7 @@ from generate_replies import generate_replies
 from deep_learning import deep_learning
 from database import connect_to_database
 from transformers import AutoModelWithLMHead, AutoTokenizer
-import os
+import os, sys
 from dotenv import load_dotenv
 
 # Load the environment variables
@@ -19,10 +19,10 @@ EMOTION_DATASET = os.getenv("EMOTION_DATASET")
 # Get the user id of the user who will receive the console output
 OWNER_ID = os.getenv("OWNER_ID")
 
-async def restart():
+async def restart(client):
     await client.close()
-    await asyncio.create_subprocess_exec("python3","main.py")
-    await asyncio.sleep(1)
+    os.execv(sys.executable, [sys.executable, "main.py"])
+
 
 # Create the Discord client
 intents = discord.Intents.default()
@@ -88,8 +88,36 @@ async def on_message(message):
             tb = traceback.format_exc()
             owner = client.get_user(int(OWNER_ID))
             await owner.send(f"An error occurred: {e}\n\n{tb}")
+    elif message.content.startswith("!setalias"):
+        try:
+            # Get the input text and connect to the database
+            input_text = message.content[len("!setalias "):]
+            conn = connect_to_database(DB_FILE)
+            c = conn.cursor()
+            c.execute("INSERT INTO aliases (discord_id, alias) VALUES (?, ?)", (message.author.id, input_text))
+            conn.commit()
+            await message.channel.send(f"{message.author.mention} alias set to {input_text}")
+        except Exception as e:
+            tb = traceback.format_exc()
+            owner = client.get_user(int(OWNER_ID))
+            await owner.send(f"An error occurred: {e}\n\n{tb}")
+    elif message.content.startswith("!whoami"):
+        try:
+            # Connect to the database
+            conn = connect_to_database(DB_FILE)
+            c = conn.cursor()
+            c.execute("SELECT alias FROM aliases WHERE discord_id=?", (message.author.id,))
+            result = c.fetchone()
+            if result:
+                await message.channel.send(f"{message.author.mention} you are known as {result[0]}")
+            else:
+                await message.channel.send(f"{message.author.mention} you don't have an alias yet, use !setalias [alias] to set it")
+        except Exception as e:
+            tb = traceback.format_exc()
+            owner = client.get_user(int(OWNER_ID))
+            await owner.send(f"An error occurred: {e}\n\n{tb}")
     elif message.content.startswith("!restart"):
         await message.channel.send("Rebooting! Be right back!")
-        await restart()
+        await restart(client)
 
 client.run(TOKEN)
