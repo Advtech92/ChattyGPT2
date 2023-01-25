@@ -19,6 +19,9 @@ EMOTION_DATASET = os.getenv("EMOTION_DATASET")
 # Get the user id of the user who will receive the console output
 OWNER_ID = os.getenv("OWNER_ID")
 
+model = AutoModelWithLMHead.from_pretrained('gpt2')
+tokenizer = AutoTokenizer.from_pretrained('gpt2')
+
 async def restart(client):
     await client.close()
     os.execv(sys.executable, [sys.executable, "main.py"])
@@ -45,8 +48,6 @@ async def fine_tune_async(model, tokenizer, EMOTION_DATASET, conn):
 @client.event
 async def on_message(message):
     print(f"Received Message: {message.content} from {message.author} in {message.channel}")
-    model = AutoModelWithLMHead.from_pretrained('gpt2')
-    tokenizer = AutoTokenizer.from_pretrained('gpt2')
     if message.content.startswith("!train"):
         print(f'Received !train command from {message.author}')
         try:
@@ -112,6 +113,34 @@ async def on_message(message):
                 await message.channel.send(f"{message.author.mention} you are known as {result[0]}")
             else:
                 await message.channel.send(f"{message.author.mention} you don't have an alias yet, use !setalias [alias] to set it")
+        except Exception as e:
+            tb = traceback.format_exc()
+            owner = client.get_user(int(OWNER_ID))
+            await owner.send(f"An error occurred: {e}\n\n{tb}")
+    elif message.content.startswith("!setpronouns"):
+        try:
+            # Get the input text and connect to the database
+            input_text = message.content[len("!setpronouns "):]
+            conn = connect_to_database(DB_FILE)
+            c = conn.cursor()
+            c.execute("INSERT INTO pronouns (discord_id, pronouns) VALUES (?, ?)", (message.author.id, input_text))
+            conn.commit()
+            await message.channel.send(f"{message.author.mention} pronouns set to {input_text}")
+        except Exception as e:
+            tb = traceback.format_exc()
+            owner = client.get_user(int(OWNER_ID))
+            await owner.send(f"An error occurred: {e}\n\n{tb}")
+    elif message.content.startswith("!getpronouns"):
+        try:
+            # Connect to the database
+            conn = connect_to_database(DB_FILE)
+            c = conn.cursor()
+            c.execute("SELECT pronouns FROM pronouns WHERE discord_id=?", (message.author.id,))
+            result = c.fetchone()
+            if result:
+                await message.channel.send(f"{message.author.mention} your pronouns are {result[0]}")
+            else:
+                await message.channel.send(f"{message.author.mention} you haven't set your pronouns yet, use !setpronouns [pronouns] to set it")
         except Exception as e:
             tb = traceback.format_exc()
             owner = client.get_user(int(OWNER_ID))
