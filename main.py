@@ -1,14 +1,11 @@
 # Main.py
-import discord
-import traceback
-import asyncio
+import discord, traceback, asyncio, os, sys, subprocess
 from discord.client import Client
 from fine_tune import fine_tune
 from generate_replies import generate_replies
 from deep_learning import deep_learning
 from database import connect_to_database
 from transformers import AutoModelWithLMHead, AutoTokenizer
-import os, sys
 from dotenv import load_dotenv
 
 # Load the environment variables
@@ -24,7 +21,7 @@ tokenizer = AutoTokenizer.from_pretrained('gpt2')
 
 async def restart(client):
     await client.close()
-    os.execv(sys.executable, [sys.executable, "main.py"])
+    os.execl(sys.executable, ['python'] + sys.argv)
 
 
 # Create the Discord client
